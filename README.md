@@ -1,4 +1,5 @@
-# asterisk-tiny
+# asterisk footprints. 228 MB
+# Simple and customizable
 
 # Update .env file
 
