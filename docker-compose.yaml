@@ -1,0 +1,53 @@
+services:
+  asterisk:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ASTERISK_VERSION: "22.7.0"
+    image: local/asterisk:22
+    container_name: asterisk
+    # network_mode: "host"   <-- REMOVE this
+    restart: unless-stopped
+    ports:
+      - "5060:5060/tcp"          # SIP TCP
+      - "5060:5060/udp"          # SIP UDP (if needed)
+      - "10000-10020:10000-10020/udp"  # RTP media range
+      - "8088:8088/tcp"          # SIP TCP
+
+    volumes:
+      - asterisk_etc:/etc/asterisk
+    environment:
+      - PUBLIC_IP=${PUBLIC_IP}
+      - PRIVATE_IP=${PRIVATE_IP}
+      - IDENTIFY_IP=${IDENTIFY_IP}
+      - FASTAGI_HOST=${FASTAGI_HOST}
+      - FASTAGI_PORT=${FASTAGI_PORT}
+      - AMI_USER=${AMI_USER}
+      - AMI_USER_PASSWORD=${AMI_USER_PASSWORD}
+      - INBOUND_CONTEXT=${INBOUND_CONTEXT}
+      - OUTBOUND_CONTEXT=${OUTBOUND_CONTEXT}
+      - SBC_IP=${SBC_IP}
+      - SBC_PORT=${SBC_PORT}
+      - TRUNK_NAME=${TRUNK_NAME}
+      - TRUNK_USERNAME=${TRUNK_USERNAME}
+      - TRUNK_PASSWORD=${TRUNK_PASSWORD}
+      - AMI_BINDADDR=${AMI_BINDADDR}
+      - ALLOWED_CODECS=${ALLOWED_CODECS}
+      - SOFTPHONE_PASS=${SOFTPHONE_PASS}
+      - SOFTPHONE_CLI=${SOFTPHONE_CLI}
+      - DIRECT_MEDIA=${DIRECT_MEDIA:-no}
+      - RTP_START_PORT_RANGE=${RTP_START_PORT_RANGE:-10000}
+      - RTP_END_PORT_RANGE=${RTP_END_PORT_RANGE:-10020}
+      - SUBNET_MASK_RANGE=${SUBNET_MASK_RANGE}
+      - ARI_ENABLED=${ARI_ENABLED:-yes}
+      - ARI_USER=${ARI_USER:-ari_user}
+      - ARI_PASSWORD=${ARI_PASSWORD:-ari_password}
+      - HTTP_ENABLED=${HTTP_ENABLED:-yes}
+      - HTTP_BINDADDR=${HTTP_BINDADDR:-0.0.0.0}
+      - HTTP_PORT=${HTTP_PORT:-8088}
+      - PROMETHEUS_ENABLED=${PROMETHEUS_ENABLED:-yes}
+
+
+volumes:
+  asterisk_etc:
