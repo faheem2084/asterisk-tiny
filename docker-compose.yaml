@@ -15,8 +15,8 @@ services:
       - "10000-10020:10000-10020/udp"  # RTP media range
       - "8088:8088/tcp"          # SIP TCP
 
-    volumes:
-      - asterisk_etc:/etc/asterisk
+    # volumes:
+    #   - asterisk_etc:/etc/asterisk
     environment:
       - PUBLIC_IP=${PUBLIC_IP}
       - PRIVATE_IP=${PRIVATE_IP}
@@ -48,6 +48,33 @@ services:
       - HTTP_PORT=${HTTP_PORT:-8088}
       - PROMETHEUS_ENABLED=${PROMETHEUS_ENABLED:-yes}
 
+    networks:
+      - voice-network
 
-volumes:
-  asterisk_etc:
+  fastapi-app:
+    image: rslim087/fastapi-prometheus:latest
+    ports:
+      - "8000:8000"  # Assuming your FastAPI app runs on port 8000
+    networks:
+      - voice-network
+
+  prometheus:
+    image: prom/prometheus:v2.37.0
+    volumes:
+      - ./configs/prom/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - voice-network
+
+  grafana:
+    image: grafana/grafana:9.0.0
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000"
+    networks:
+      - voice-network
+
+networks:
+  voice-network:
