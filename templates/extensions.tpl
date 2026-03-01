@@ -26,5 +26,8 @@ same => n, Agi(agi://${FASTAGI_HOST}:${FASTAGI_PORT}/inbound)
 [softphone-ctx]
 exten => _+X.,1,NoOp(softphone dialed number - ${EXTEN})
 same => n,Set(CALLERID(num)=${SOFTPHONE_CLI})
-same => n, Dial(PJSIP/${EXTEN}@${TRUNK_NAME},45)
+;same => n, playback(tt-monkeys)
+exten = _x.,1,Dial(WebSocket/media_connection1/c(ulaw))
+;same => n, Dial(PJSIP/${EXTEN}@${TRUNK_NAME},45)
 exten => h, 1, Verbose(Got hangup)
+

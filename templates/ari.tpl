@@ -1,6 +1,6 @@
 [general]
 enabled=${ARI_ENABLED}
-websocket_write_timeout=100
+websocket_write_timeout=3000
 pretty=yes
 ;channelvars = var1,var2,var3
 

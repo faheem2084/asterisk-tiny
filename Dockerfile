@@ -1,5 +1,5 @@
 # Multi-stage minimal Asterisk 22 image (Debian 13 / trixie)
-ARG ASTERISK_VERSION=22.7.0
+ARG ASTERISK_VERSION=22.8.2
 ARG BASE_IMAGE=debian:trixie-slim
 
 ################

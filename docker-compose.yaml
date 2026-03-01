@@ -4,10 +4,9 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        ASTERISK_VERSION: "22.7.0"
+        ASTERISK_VERSION: "22.8.2"
     image: local/asterisk:22
     container_name: asterisk
-    # network_mode: "host"   <-- REMOVE this
     restart: unless-stopped
     ports:
       - "5060:5060/tcp"          # SIP TCP
@@ -51,30 +50,30 @@ services:
     networks:
       - voice-network
 
-  fastapi-app:
-    image: rslim087/fastapi-prometheus:latest
-    ports:
-      - "8000:8000"  # Assuming your FastAPI app runs on port 8000
-    networks:
-      - voice-network
+  # fastapi-app:
+  #   image: rslim087/fastapi-prometheus:latest
+  #   ports:
+  #     - "8000:8000"  # Assuming your FastAPI app runs on port 8000
+  #   networks:
+  #     - voice-network
 
-  prometheus:
-    image: prom/prometheus:v2.37.0
-    volumes:
-      - ./configs/prom/prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
-    networks:
-      - voice-network
+  # prometheus:
+  #   image: prom/prometheus:v2.37.0
+  #   volumes:
+  #     - ./configs/prom/prometheus.yml:/etc/prometheus/prometheus.yml
+  #   ports:
+  #     - "9090:9090"
+  #   networks:
+  #     - voice-network
 
-  grafana:
-    image: grafana/grafana:9.0.0
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    ports:
-      - "3000:3000"
-    networks:
-      - voice-network
+  # grafana:
+  #   image: grafana/grafana:9.0.0
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - voice-network
 
 networks:
   voice-network:
