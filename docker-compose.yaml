@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        ASTERISK_VERSION: "22.8.2"
+        ASTERISK_VERSION: "22.9.0"
     image: local/asterisk:22
     container_name: asterisk
     restart: unless-stopped

@@ -1,5 +1,5 @@
 # Multi-stage minimal Asterisk 22 image (Debian 13 / trixie)
-ARG ASTERISK_VERSION=22.8.2
+ARG ASTERISK_VERSION=22.9.0
 ARG BASE_IMAGE=debian:trixie-slim
 
 ################
@@ -14,7 +14,8 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends \
     build-essential wget ca-certificates uuid-dev libxml2-dev libncurses-dev \
     libsqlite3-dev libssl-dev libedit-dev libjansson-dev libsrtp2-dev pkg-config \
-    bison flex python3 xmlstarlet git subversion \
+    bison flex python3 xmlstarlet git subversion patch \
+    libopus-dev libspeex-dev libspeexdsp-dev libogg-dev libvorbis-dev \
  && rm -rf /var/lib/apt/lists/*
 
 RUN wget -q "https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-${ASTERISK_VERSION}.tar.gz" \
@@ -25,14 +26,10 @@ RUN wget -q "https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-${AS
 WORKDIR /usr/src/asterisk
 
 
-WORKDIR /usr/src/asterisk/contrib/scripts
-RUN DEBIAN_FRONTEND=noninteractive  ./get_mp3_source.sh
-WORKDIR /usr/src/asterisk
-
 RUN ./contrib/scripts/get_mp3_source.sh
-RUN ./configure --with-jansson-bundled
-RUN DEBIAN_FRONTEND=noninteractive make menuselect.makeopts \
-    && menuselect/menuselect --disable BUILD_NATIVE   \
+RUN ./configure --with-jansson-bundled --with-pjproject-bundled
+RUN make menuselect.makeopts
+RUN menuselect/menuselect --disable BUILD_NATIVE   \
     --enable format_mp3     \
     --enable res_config_mysql                   \
     --enable res_agi                             \
@@ -67,9 +64,6 @@ RUN DEBIAN_FRONTEND=noninteractive make menuselect.makeopts \
     --enable res_format_attr_siren14             \
     --enable res_format_attr_siren7              \
     --enable res_format_attr_vp8                 \
-   #  --enable res_http_media_cache                \
-   #  --enable res_http_post                       \
-   #  --enable res_http_websocket                  \
     --enable res_limit                           \
     --enable res_manager_devicestate             \
     --enable res_manager_presencestate           \
@@ -109,33 +103,17 @@ RUN DEBIAN_FRONTEND=noninteractive make menuselect.makeopts \
     --enable res_timing_kqueue                   \
     --enable res_timing_pthread                  \
     --enable res_tonedetect                      \
-    menuselect.makeopts  \
-    && make -j$(nproc) 1> /dev/null     \
-    && make -j$(nproc) install 1> /dev/null    \
-    && make -j$(nproc) samples 1> /dev/null     \
-    && make dist-clean     \
-    && sed -i -e 's/# MAXFILES=/MAXFILES=/' /usr/sbin/safe_asterisk     \
-    && useradd -m asterisk -s /sbin/nologin \
-    && chown -R asterisk:asterisk /var/run/asterisk \
-    /etc/asterisk/ \
-    /var/lib/asterisk \
-    /var/log/asterisk \
-    /var/spool/asterisk \
-    && rm -rf /usr/src/* \
-    && rm -rf /tmp/*.bz2 \
-    && rm -rf /etc/asterisk/*.conf \
-    && ldconfig
+    menuselect.makeopts
 
-# Collect built shared libraries
-RUN mkdir -p /usr/lib/asterisk /usr/local/lib /usr/share/asterisk; \
-    find / -name 'libasterisk*.so*' -print 2>/dev/null | sort -u | while read -r f; do \
-      cp -n "$f" /usr/lib/asterisk/ || true; \
-      cp -n "$f" /usr/local/lib/ || true; \
-    done || true; \
-    find / -name 'libasteriskpj*.so*' -print 2>/dev/null | sort -u | while read -r f; do \
-      cp -n "$f" /usr/lib/asterisk/ || true; \
-      cp -n "$f" /usr/local/lib/ || true; \
-    done || true
+RUN make NOISY_BUILD=yes -j1 \
+ && make -j$(nproc) \
+ && make DESTDIR=/tmp/asterisk install \
+ && mkdir -p /tmp/asterisk/usr/local/lib /tmp/asterisk/usr/share/asterisk /tmp/asterisk/var/spool/asterisk \
+ && rm -rf /tmp/asterisk/usr/share/man /tmp/asterisk/usr/share/doc /tmp/asterisk/var/lib/asterisk/sounds/* \
+ && find /tmp/asterisk -name "*.a" -delete \
+ && find /tmp/asterisk -name "*.la" -delete \
+ && find /tmp/asterisk -type f -name "*.so*" -exec strip --strip-unneeded {} + \
+ && strip --strip-unneeded /tmp/asterisk/usr/sbin/asterisk
 
 ################
 # Runtime stage #
@@ -159,39 +137,27 @@ RUN groupadd -r asterisk \
     /var/lib/asterisk \
     /var/spool/asterisk \
     /var/log/asterisk \
+    /var/run/asterisk \
     /usr/lib/asterisk \
     /usr/local/lib \
-    /usr/share/asterisk
-
-# Copy runtime artifacts
-COPY --from=build /usr/sbin/asterisk /usr/sbin/asterisk
-COPY --from=build /usr/lib/asterisk /usr/lib/asterisk
-COPY --from=build /usr/local/lib /usr/local/lib
-COPY --from=build /usr/share/asterisk /usr/share/asterisk
-COPY --from=build /etc/asterisk /etc/asterisk
-COPY --from=build /var/lib/asterisk /var/lib/asterisk
-COPY --from=build /var/spool/asterisk /var/spool/asterisk
-COPY --from=build /var/log/asterisk /var/log/asterisk
-
-# Fix permissions
-RUN chown root:asterisk /usr/sbin/asterisk \
- && chmod 750 /usr/sbin/asterisk \
- && chown -R asterisk:asterisk \
-    /etc/asterisk \
-    /var/lib/asterisk \
-    /var/spool/asterisk \
-    /var/log/asterisk \
-    /usr/lib/asterisk \
     /usr/share/asterisk \
-    /usr/local/lib
+ && chown asterisk:asterisk /etc/asterisk /var/lib/asterisk /var/spool/asterisk /var/log/asterisk /var/run/asterisk
+
+# Copy runtime artifacts from build stage
+COPY --from=build --chown=asterisk:asterisk /tmp/asterisk/usr/sbin/asterisk /usr/sbin/asterisk
+COPY --from=build --chown=asterisk:asterisk /tmp/asterisk/usr/lib/asterisk /usr/lib/asterisk
+COPY --from=build --chown=asterisk:asterisk /tmp/asterisk/usr/local/lib /usr/local/lib
+COPY --from=build --chown=asterisk:asterisk /tmp/asterisk/usr/share/asterisk /usr/share/asterisk
+COPY --from=build --chown=asterisk:asterisk /tmp/asterisk/etc/asterisk /etc/asterisk
+COPY --from=build --chown=asterisk:asterisk /tmp/asterisk/var/lib/asterisk /var/lib/asterisk
+COPY --from=build --chown=asterisk:asterisk /tmp/asterisk/var/spool/asterisk /var/spool/asterisk
 
 RUN ldconfig || true
 
 # Copy configs & templates
 RUN rm -rf /etc/asterisk/*
-COPY ./configs/etc_asterisk/ /etc/asterisk
-COPY ./templates /templates
-RUN chown -R asterisk:asterisk /etc/asterisk /templates
+COPY --chown=asterisk:asterisk ./configs/etc_asterisk/ /etc/asterisk
+COPY --chown=asterisk:asterisk ./templates /templates
 
 # Entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
